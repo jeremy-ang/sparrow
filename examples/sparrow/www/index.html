@@ -66,7 +66,6 @@
 
 </script>
 
-
 <script language="javascript" type="text/javascript">
 var wsUri;
 var output;
@@ -77,11 +76,22 @@ var websocket;
 
 if (location.host) {
   var lhost = location.host;
+  var lport = "8001";
   var i = lhost.indexOf(':')
   if (i > 0) {
+    lport = lhost.substring(i+1);
+    lport.replace('/', '');
+    lport = Number(lport);
+    if(!Number.isNaN(lport))
+    {
+      lport = lport + 1;
+      lport = lport.toString();
+    }
+    else
+      lport = "8001";
     lhost = lhost.substring(0, i)
   }
-  wsUri = "ws://" + lhost + ":8001/";
+  wsUri = "ws://" + lhost + ":" + lport +"/";
 } else {
   wsUri = "ws://127.0.0.1:8001/";
 }

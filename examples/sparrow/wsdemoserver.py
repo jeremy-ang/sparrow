@@ -47,6 +47,8 @@ import httpd
 websockets = []
 nbr_address = None
 device_manager = None
+http_port = 8000
+router_oam_port = 49111
 
 def send_response(ws, message):
     ws.sendMessage(json.dumps({"response":message}))
@@ -76,7 +78,7 @@ def get_nbr_info(ws):
     t1 = tlvlib.create_get_tlv64(0, tlvlib.VARIABLE_UNIT_BOOT_TIMER)
     t2 = tlvlib.create_get_tlv128(0, tlvlib.VARIABLE_SW_REVISION)
     t3 = tlvlib.create_get_tlv256(device_manager.brm_instance, 0x101)
-    enc, tlvs = tlvlib.send_tlv([t1,t2,t3], "localhost")
+    enc, tlvs = tlvlib.send_tlv([t1,t2,t3], "localhost", router_oam_port)
     info['BootedAt'] = tlvlib.get_start_ieee64_time_as_string(tlvs[0].int_value)
     info['Uptime'] = tlvlib.convert_ieee64_time_to_string(tlvs[0].int_value)
     info['BorderRouterSW'] = tlvlib.convert_string(tlvs[1].value)
@@ -87,7 +89,7 @@ def get_nbr_info(ws):
     t2 = tlvlib.create_get_tlv32(device_manager.radio_instance,
                                  tlvlib.VARIABLE_RADIO_CHANNEL)
     t3 = tlvlib.create_get_tlv128(device_manager.brm_instance, 0x105)
-    enc, tlvs = tlvlib.send_tlv([t1,t2,t3], "localhost")
+    enc, tlvs = tlvlib.send_tlv([t1,t2,t3], "localhost", router_oam_port)
     info['PanID'] = "0x%04x"%tlvs[0].int_value
     info['Channel'] = tlvs[1].int_value
     info['SerialRadioSW'] = tlvlib.convert_string(tlvs[2].value)
@@ -116,7 +118,7 @@ def set_channel(ws, channel):
         tlv = tlvlib.create_set_tlv(device_manager.radio_instance,
                                     tlvlib.VARIABLE_RADIO_CHANNEL,
                                     tlvlib.SIZE32, struct.pack("!L", channel))
-        enc, tlvs = tlvlib.send_tlv([tlv], "localhost")
+        enc, tlvs = tlvlib.send_tlv([tlv], "localhost", router_oam_port)
         print "channel set to:", channel
         send_response(ws, "Channel set to: " + str(channel))
 
@@ -131,7 +133,7 @@ def do_global_repair(ws):
     print "Global Network Repair!"
     tlv = tlvlib.create_set_tlv(device_manager.brm_instance, 0x10a,
                                 tlvlib.SIZE32, struct.pack("!L", 1))
-    enc, tlvs = tlvlib.send_tlv([tlv], "localhost")
+    enc, tlvs = tlvlib.send_tlv([tlv], "localhost", router_oam_port)
     send_response(ws, "Global Network Repair!")
 
 def set_panid(ws, panid):
@@ -141,7 +143,7 @@ def set_panid(ws, panid):
     tlv = tlvlib.create_set_tlv(device_manager.radio_instance,
                                 tlvlib.VARIABLE_RADIO_PAN_ID,
                                 tlvlib.SIZE32, struct.pack("!L", panid))
-    enc, tlvs = tlvlib.send_tlv([tlv], "localhost")
+    enc, tlvs = tlvlib.send_tlv([tlv], "localhost", router_oam_port)
     print "panid set to: " + str(panid)
     send_response(ws, "Panid set to: " + str(panid))
     # Update table
@@ -154,6 +156,7 @@ def stop(ws):
 def setup_state():
     global nbr_address
     global device_manager
+    global http_port
 
     nbr_address = device_manager.router_address
     if nbr_address == None:
@@ -161,7 +164,7 @@ def setup_state():
         sys.exit(1)
 
     httpd.set_forward_prefix(device_manager.router_prefix)
-    httpd.init()
+    httpd.init(http_port)
 
     print "WS Server state initialized."
 
@@ -270,13 +273,34 @@ def test_listener(device_event):
             ws.sendMessage(data)
 
 def usage():
-    print "Usage:",sys.argv[0],"[-c channel] [-P panid]"
+    print "Usage:",sys.argv[0],"[-c channel] [-P panid] [-p port] [-C port] [-o port]"
     exit(0)
 
 if __name__ == "__main__":
     arg = 1
 
     device_manager = deviceserver.DeviceServer()
+
+    while len(sys.argv) > arg + 1:
+        if sys.argv[arg] == "-c":
+            device_manager.radio_channel = tlvlib.decodevalue(sys.argv[arg + 1])
+        elif sys.argv[arg] == "-P":
+            device_manager.radio_panid = tlvlib.decodevalue(sys.argv[arg + 1])
+        elif sys.argv[arg] == "-p":
+            http_port = tlvlib.decodevalue(sys.argv[arg + 1])
+        elif sys.argv[arg] == "-C":
+            device_manager.udp_port = tlvlib.decodevalue(sys.argv[arg + 1])
+        elif sys.argv[arg] == "-o":
+            router_oam_port = tlvlib.decodevalue(sys.argv[arg + 1])
+            device_manager.router_oam_port = router_oam_port
+        else:
+            break
+        arg += 2
+
+    if len(sys.argv) > arg:
+        if sys.argv[arg] == "-h":
+            usage()
+
     try:
         if not device_manager.setup():
             print "No border router found. Please make sure a border router is running!"
@@ -288,21 +312,9 @@ if __name__ == "__main__":
         print e
         print "Failed to connect to border router."
         exit(1)
-    while len(sys.argv) > arg + 1:
-        if sys.argv[arg] == "-c":
-            device_manager.radio_channel = tlvlib.decodevalue(sys.argv[arg + 1])
-        elif sys.argv[arg] == "-P":
-            device_manager.radio_panid = tlvlib.decodevalue(sys.argv[arg + 1])
-        else:
-            break
-        arg += 2
-
-    if len(sys.argv) > arg:
-        if sys.argv[arg] == "-h":
-            usage()
     device_manager.set_channel_panid()
     print "Starting demo server"
     setup_state()
-    server = SimpleWebSocketServer('', 8001, DemoSocket)
+    server = SimpleWebSocketServer('', http_port + 1, DemoSocket)
     plugins = plugins + [wspserial.SerialCommands(), wsptlvs.TLVCommands(), wspnodes.NodeCommands()]
     server.serveforever()

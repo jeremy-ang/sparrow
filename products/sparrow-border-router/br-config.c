@@ -85,6 +85,7 @@ const char *server_config_port = NULL;
 char br_config_tundev[1024] = { "" };
 uint16_t br_config_siodev_delay = SEND_DELAY_DEFAULT;
 uint16_t br_config_unit_controller_port = 4444;
+uint16_t br_config_oam_port = 0;
 uint8_t br_config_is_slave = 0;
 
 #ifndef BAUDRATE
@@ -92,7 +93,7 @@ uint8_t br_config_is_slave = 0;
 #endif
 speed_t br_config_b_rate = BAUDRATE;
 
-#define GET_OPT_OPTIONS "_?hB:HD:Ls:t:v::b::d::i:l:a:p:SP:C:c:X:"
+#define GET_OPT_OPTIONS "_?hB:HD:Ls:t:v::b::d::i:l:a:p:o:SP:C:c:X:"
 /*---------------------------------------------------------------------------*/
 int
 br_config_handle_arguments(int argc, char **argv)
@@ -148,6 +149,15 @@ br_config_handle_arguments(int argc, char **argv)
 
     case 'p':
       br_config_port = optarg;
+      break;
+
+    case 'o':
+      tmp = atoi(optarg);
+      if(tmp <= 0 || tmp > 0xffff) {
+        fprintf(stderr, "illegal OAM port: %s\n", optarg);
+      } else {
+        br_config_oam_port = tmp;
+      }
       break;
 
     case 'C':
@@ -219,6 +229,7 @@ fprintf(stderr," -s siodev      Serial device (default /dev/ttyUSB0)\n");
 fprintf(stderr," -i ipaddr      border router IP address\n");
 fprintf(stderr," -a host        Connect via TCP to server at <host>\n");
 fprintf(stderr," -p port        Connect via TCP to server at <host>:<port>\n");
+fprintf(stderr," -o port        Open UDP OAM at localhost:<port>\n");
 fprintf(stderr," -c port        Open UDP control at localhost:<port>\n");
 fprintf(stderr," -t tundev      Name of interface (default tun0)\n");
 fprintf(stderr," -X cmd         Run the command and then exit\n");

@@ -301,6 +301,9 @@ udp_cmd_start(void)
     return;
   }
 
+  if(br_config_oam_port > 0)
+    port = br_config_oam_port;
+
   memset((void *) &server, 0, sizeof(server));
 
   server.sin_family = AF_INET;

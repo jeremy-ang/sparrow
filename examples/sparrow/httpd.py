@@ -72,11 +72,11 @@ class MyRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         print "httpd: Path: ", self.path
         return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
 
-def init():
+def init(port=HTTP_PORT):
     global _httpd
 
-    _httpd = BaseHTTPServer.HTTPServer(("", HTTP_PORT), MyRequestHandler)
-    print "httpd: serving at port", HTTP_PORT
+    _httpd = BaseHTTPServer.HTTPServer(("", port), MyRequestHandler)
+    print "httpd: serving at port", port
 
 def set_forward_prefix(prefix):
     global forward_prefix

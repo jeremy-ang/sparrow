@@ -325,6 +325,8 @@ class DeviceServer:
     udp_address = "aaaa::1"
     udp_port = 4444
 
+    router_oam_port = 49111
+
     # The open range is 7000 - 7999
     # This is what is announced in the beacon
     location = 7000
@@ -651,7 +653,7 @@ class DeviceServer:
     def setup(self):
         # discover and - if it is a NBR then find serial radio and configure the
         # beacons to something good!
-        d = tlvlib.discovery(self.router_host)
+        d = tlvlib.discovery(self.router_host, self.router_oam_port)
         print "Product label:", d[0][0]
 
         if d[0][1] != tlvlib.INSTANCE_BORDER_ROUTER:
@@ -667,7 +669,7 @@ class DeviceServer:
             elif data[0] == tlvlib.INSTANCE_ROUTER:
                 self.router_instance = i
                 t = tlvlib.create_get_tlv(i, tlvlib.VARIABLE_NETWORK_ADDRESS, 2)
-                enc, t = tlvlib.send_tlv(t, self.router_host)
+                enc, t = tlvlib.send_tlv(t, self.router_host, self.router_oam_port)
 
                 self.router_address = socket.inet_ntop(socket.AF_INET6, t[0].value)
                 print "\tRouter address:", self.router_address
@@ -727,7 +729,7 @@ class DeviceServer:
                                       tlvlib.VARIABLE_RADIO_BEACON_RESPONSE,
                                       0, 0, len(beacon_payload) / 4,
                                       beacon_payload)
-        enc, t = tlvlib.send_tlv(t, self.router_host)
+        enc, t = tlvlib.send_tlv(t, self.router_host, self.router_oam_port)
 #        print "Result:"
 #        tlvlib.print_tlv(t[0])
         return True
@@ -766,7 +768,7 @@ class DeviceServer:
         t2 = tlvlib.create_set_tlv32(self.radio_instance,
                                      tlvlib.VARIABLE_RADIO_PAN_ID,
                                      self.radio_panid)
-        tlvlib.send_tlv([t1,t2], self.router_host)
+        tlvlib.send_tlv([t1,t2], self.router_host, self.router_oam_port)
 
     def _udp_receive(self, sock):
         print "UDP Receive - on socket: ", sock

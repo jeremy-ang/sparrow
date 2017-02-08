@@ -46,6 +46,7 @@ extern const char *server_config_port;
 extern char br_config_tundev[];
 extern uint16_t br_config_siodev_delay;
 extern uint16_t br_config_unit_controller_port;
+extern uint16_t br_config_oam_port;
 extern uint8_t br_config_is_slave;
 
 #endif /* BR_CONFIG_H_ */
